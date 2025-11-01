@@ -1,0 +1,33 @@
+###
+GET http://localhost:5193/games
+
+###
+GET http://localhost:5193/games/1
+
+###
+POST http://localhost:5193/games
+Content-Type: application/json
+
+{
+    "name": "Starfield",
+    "genre": "Sci-Fi RPG",
+    "price": 69.99,
+    "releaseDate": "2023-09-06"
+}
+
+###
+PUT http://localhost:5193/games/1
+Content-Type: application/json
+
+{
+    "name": "Pure Farming",
+    "genre": "Simulator",
+    "price": 19.99,
+    "releaseDate": "2020-09-07"
+}
+
+###
+DELETE http://localhost:5193/games/2
+
+###
+GET http://localhost:5193/hello
