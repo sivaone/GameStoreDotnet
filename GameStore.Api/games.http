@@ -2,7 +2,7 @@
 GET http://localhost:5193/games
 
 ###
-GET http://localhost:5193/games/1
+GET http://localhost:5193/games/3
 
 ###
 POST http://localhost:5193/games
@@ -10,18 +10,18 @@ Content-Type: application/json
 
 {
     "name": "Starfield",
-    "genre": "Sci-Fi RPG",
+    "genreId": 2,
     "price": 69.99,
     "releaseDate": "2023-09-06"
 }
 
 ###
-PUT http://localhost:5193/games/1
+PUT http://localhost:5193/games/3
 Content-Type: application/json
 
 {
     "name": "Pure Farming",
-    "genre": "Simulator",
+    "genreId": 3,
     "price": 19.99,
     "releaseDate": "2020-09-07"
 }

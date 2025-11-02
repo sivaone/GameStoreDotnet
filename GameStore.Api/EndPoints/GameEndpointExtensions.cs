@@ -1,51 +1,51 @@
 using System;
+using GameStore.Api.Data;
 using GameStore.Api.Dtos;
+using GameStore.Api.Entities;
+using GameStore.Api.Mappers;
+using Microsoft.EntityFrameworkCore;
 using MiniValidation;
 
 namespace GameStore.Api.EndPoints;
 
 public static class GameEndpointExtensions
 {
+    const string GetGameEndpointName = "GetGame";
 
     public static void MapGameEndpoints(this WebApplication app)
     {
         app.MapGet("/hello", () => "Hello world!");
-
-        List<GameDto> games = new()
-        {
-            new (1, "Skyward Quest", "Adventure", 59.99m, new DateOnly(2023, 5, 12)),
-            new (2, "Nebula Racer", "Racing", 39.99m, new DateOnly(2022, 11, 2)),
-            new (3, "Forge & Fortify", "Strategy", 49.99m, new DateOnly(2024, 2, 28))
-        };
 
         // Route groups
         // var group = app.MapGroup("/games");
         // group.MapGet("/", () => games);
 
         // GET /games
-        app.MapGet("/games", () => games);
+        app.MapGet("/games", (GameStoreContext dbContext) =>
+        {
+            return dbContext.Games
+                .Include(game => game.Genre)
+                .Select(game => game.ToDto())
+                .AsNoTracking()
+                .ToList();
+        });
 
-        const string GetGameEndpointName = "GetGame";
 
         // GET /games/1
-        app.MapGet("/games/{id}", (int id) =>
+        app.MapGet("/games/{id}", (int id, GameStoreContext dbContext) =>
         {
-            GameDto? game = games.Find(game => game.Id == id);
+            Game? game = dbContext.Games
+                .Include(g => g.Genre)
+                .FirstOrDefault(g => g.Id == id);
 
-            return game is null ? Results.NotFound() : Results.Ok(game);
+            return game is null ? Results.NotFound() : Results.Ok(game.ToDto());
         })
         .WithName(GetGameEndpointName);
 
+
         // POST /games
-        app.MapPost("/games", (BaseGameDto newGame) =>
+        app.MapPost("/games", (BaseGameDto newGame, GameStoreContext dbContext) =>
         {
-            // Below is not working with records. It works only with setters
-            /* var validationResults = new List<ValidationResult>();
-            var context = new ValidationContext(newGame);
-            if(!Validator.TryValidateObject(newGame, context, validationResults, true))
-            {
-                return Results.ValidationProblem(validationResults);
-            } */
 
             // MiniValidation package
             if (!MiniValidator.TryValidate(newGame, out var validationResults))
@@ -54,45 +54,59 @@ public static class GameEndpointExtensions
                 // Results.BadRequest(validationResults); // custom structure
             }
 
-            GameDto game = new(
-                games.Count + 1,
-                newGame.Name,
-                newGame.Genre,
-                newGame.Price,
-                newGame.ReleaseDate);
-            games.Add(game);
+            Game game = newGame.ToEntity();
+            // game.Genre = dbContext.Genres.Find(newGame.GenreId);
 
-            return Results.CreatedAtRoute(GetGameEndpointName, new { id = game.Id }, game);
+            dbContext.Games.Add(game);
+            dbContext.SaveChanges();
+
+            dbContext.Entry(game).Reference(g => g.Genre).Load();
+
+            GameDto gameDto = game.ToDto();
+
+            return Results.CreatedAtRoute(GetGameEndpointName, new { id = gameDto.Id }, gameDto);
         });
 
+
         // PUT /games/1
-        app.MapPut("/games/{id}", (int id, BaseGameDto updateGame) =>
+        app.MapPut("/games/{id}", (int id, BaseGameDto updateGame, GameStoreContext dbContext) =>
         {
-            var index = games.FindIndex(game => game.Id == id);
+            var game = dbContext.Games.Find(id);
             // Either return not found or create a resource
-            if (index == -1)
+            if (game is null)
             {
                 return Results.NotFound();
             }
 
-            games[index] = new(
-                id,
-                updateGame.Name,
-                updateGame.Genre,
-                updateGame.Price,
-                updateGame.ReleaseDate);
+            game.Name = updateGame.Name;
+            game.GenreId = updateGame.GenreId;
+            // game.Genre = dbContext.Genres.Find(updateGame.GenreId);
+            game.Price = updateGame.Price;
+            game.ReleaseDate = updateGame.ReleaseDate;
 
+            dbContext.SaveChanges();
 
             return Results.NoContent();
         });
+        
 
         // DELETE /games/1
-        app.MapDelete("/games/{id}", (int id) =>
+        app.MapDelete("/games/{id}", (int id, GameStoreContext dbContext) =>
         {
-            games.RemoveAll(game => game.Id == id);
+            // Method 1: Batch delete
+            dbContext.Games
+                .Where(g => g.Id == id)
+                .ExecuteDelete();
+
+            // Method 2: Remove() - SaveChanges() IS needed
+            /* var game = dbContext.Games.Find(id);
+            if (game is not null)
+            {
+                dbContext.Games.Remove(game);
+                dbContext.SaveChanges();
+            } */
 
             return Results.NoContent();
-
         });
 
     }
