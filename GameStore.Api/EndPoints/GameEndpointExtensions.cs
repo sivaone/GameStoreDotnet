@@ -21,22 +21,22 @@ public static class GameEndpointExtensions
         // group.MapGet("/", () => games);
 
         // GET /games
-        app.MapGet("/games", (GameStoreContext dbContext) =>
+        app.MapGet("/games", async (GameStoreContext dbContext) =>
         {
-            return dbContext.Games
+            return await dbContext.Games
                 .Include(game => game.Genre)
                 .Select(game => game.ToDto())
                 .AsNoTracking()
-                .ToList();
+                .ToListAsync();
         });
 
 
         // GET /games/1
-        app.MapGet("/games/{id}", (int id, GameStoreContext dbContext) =>
+        app.MapGet("/games/{id}", async (int id, GameStoreContext dbContext) =>
         {
-            Game? game = dbContext.Games
+            Game? game = await dbContext.Games
                 .Include(g => g.Genre)
-                .FirstOrDefault(g => g.Id == id);
+                .FirstOrDefaultAsync(g => g.Id == id);
 
             return game is null ? Results.NotFound() : Results.Ok(game.ToDto());
         })
@@ -44,7 +44,7 @@ public static class GameEndpointExtensions
 
 
         // POST /games
-        app.MapPost("/games", (BaseGameDto newGame, GameStoreContext dbContext) =>
+        app.MapPost("/games", async (BaseGameDto newGame, GameStoreContext dbContext) =>
         {
 
             // MiniValidation package
@@ -58,9 +58,9 @@ public static class GameEndpointExtensions
             // game.Genre = dbContext.Genres.Find(newGame.GenreId);
 
             dbContext.Games.Add(game);
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
-            dbContext.Entry(game).Reference(g => g.Genre).Load();
+            await dbContext.Entry(game).Reference(g => g.Genre).LoadAsync();
 
             GameDto gameDto = game.ToDto();
 
@@ -69,9 +69,9 @@ public static class GameEndpointExtensions
 
 
         // PUT /games/1
-        app.MapPut("/games/{id}", (int id, BaseGameDto updateGame, GameStoreContext dbContext) =>
+        app.MapPut("/games/{id}", async (int id, BaseGameDto updateGame, GameStoreContext dbContext) =>
         {
-            var game = dbContext.Games.Find(id);
+            var game = await dbContext.Games.FindAsync(id);
             // Either return not found or create a resource
             if (game is null)
             {
@@ -84,26 +84,26 @@ public static class GameEndpointExtensions
             game.Price = updateGame.Price;
             game.ReleaseDate = updateGame.ReleaseDate;
 
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return Results.NoContent();
         });
         
 
         // DELETE /games/1
-        app.MapDelete("/games/{id}", (int id, GameStoreContext dbContext) =>
+        app.MapDelete("/games/{id}", async (int id, GameStoreContext dbContext) =>
         {
             // Method 1: Batch delete
-            dbContext.Games
+            await dbContext.Games
                 .Where(g => g.Id == id)
-                .ExecuteDelete();
+                .ExecuteDeleteAsync();
 
             // Method 2: Remove() - SaveChanges() IS needed
-            /* var game = dbContext.Games.Find(id);
+            /* var game = await dbContext.Games.FindAsync(id);
             if (game is not null)
             {
                 dbContext.Games.Remove(game);
-                dbContext.SaveChanges();
+                await dbContext.SaveChangesAsync();
             } */
 
             return Results.NoContent();

@@ -13,6 +13,7 @@ var app = builder.Build();
 
 // Extension methods
 app.MapGameEndpoints();
-app.MigrateDb();
+app.MapGenreEndpoints();
+await app.MigrateDbAsync();
 
 app.Run();
